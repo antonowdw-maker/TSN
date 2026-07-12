@@ -1,0 +1,18 @@
+# Переменные окружения с секретами — не коммитить в репозиторий
+.env
+.env.local
+.env.production
+.env.development
+
+# Кэш Python и виртуальные окружения
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Результаты тестов и IDE
+.pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/

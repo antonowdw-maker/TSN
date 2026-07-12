@@ -1,0 +1,131 @@
+name: Deploy to Railway Sandbox
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Resolve Railway service
+        id: service
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          preferred = os.environ.get("RAILWAY_SERVICE_ID", "").strip()
+
+          result = subprocess.run(
+              ["railway", "service", "list", "--json"],
+              capture_output=True,
+              text=True,
+          )
+          if result.returncode != 0:
+              print(result.stderr or result.stdout, file=sys.stderr)
+              sys.exit(result.returncode)
+
+          services = json.loads(result.stdout or "[]")
+          if not services:
+              print("В проекте Railway нет сервисов.", file=sys.stderr)
+              sys.exit(1)
+
+          print("Сервисы в проекте:")
+          for service in services:
+              source = service.get("source") or {}
+              repo = source.get("repo") or "-"
+              image = source.get("image") or "-"
+              print(
+                  f"  - {service.get('name')} | id={service.get('id')} "
+                  f"| repo={repo} | image={image}"
+              )
+
+          def is_database(service: dict) -> bool:
+              name = (service.get("name") or "").lower()
+              source = service.get("source") or {}
+              image = (source.get("image") or "").lower()
+              return "postgres" in name or "redis" in name or "mysql" in name or "postgres" in image
+
+          def repo_hint(service: dict) -> str:
+              source = service.get("source") or {}
+              return (source.get("repo") or "").lower()
+
+          match = None
+          if preferred:
+              preferred_lower = preferred.lower()
+              for service in services:
+                  if preferred_lower in {
+                      (service.get("id") or "").lower(),
+                      (service.get("name") or "").lower(),
+                  }:
+                      match = service
+                      break
+
+          if match is None and preferred:
+              print(
+                  f"\nПредупреждение: RAILWAY_SERVICE_ID='{preferred}' не совпал "
+                  "ни с одним сервисом (часто сюда ошибочно кладут Project ID).",
+              )
+
+          if match is None:
+              repo_matches = [
+                  service
+                  for service in services
+                  if "tsn" in repo_hint(service) and not is_database(service)
+              ]
+              if len(repo_matches) == 1:
+                  match = repo_matches[0]
+                  print(
+                      f"\nАвтовыбор сервиса по репозиторию: "
+                      f"{match.get('name')} ({match.get('id')})"
+                  )
+
+          if match is None:
+              app_services = [service for service in services if not is_database(service)]
+              if len(app_services) == 1:
+                  match = app_services[0]
+                  print(
+                      f"\nАвтовыбор единственного не-DB сервиса: "
+                      f"{match.get('name')} ({match.get('id')})"
+                  )
+
+          if match is None:
+              print(
+                  "\nОшибка: не удалось определить сервис бота.",
+                  file=sys.stderr,
+              )
+              print(
+                  "Обновите секрет RAILWAY_SERVICE_ID — ID из URL .../service/XXXXXXXX.",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          service_id = match["id"]
+          service_name = match.get("name", service_id)
+          print(f"\nDeploy target: {service_name} ({service_id})")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"service_id={service_id}\n")
+              output.write(f"service_name={service_name}\n")
+          PY
+
+      - name: Deploy bot
+        run: railway up --detach --service "${{ steps.service.outputs.service_id }}"
+
+      - name: Set Telegram bot token
+        run: |
+          railway variable set TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            --service "${{ steps.service.outputs.service_id }}"
