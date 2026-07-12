@@ -16,14 +16,12 @@
 
 ## Команды
 
-| Команда | Описание |
-|---------|----------|
-| `/start` | Приветствие и меню |
-| `/help` | Справка |
-| `/faq` | Популярные вопросы |
-| `/contacts` | Контакты |
-| `/dispatcher` | Диспетчерская |
-| `/schedule` | График работы |
+- `/start` — приветствие и меню
+- `/help` — справка
+- `/faq` — популярные вопросы
+- `/contacts` — контакты
+- `/dispatcher` — диспетчерская
+- `/schedule` — график работы
 
 ## Данные
 
@@ -45,7 +43,7 @@ python -m bot.main
 
 ## Деплой
 
-Push в `main` → GitHub Actions деплоит на **Railway** (см. `.github/workflows/deploy-railway.yml`).
+Push в `main` → GitHub Actions деплоит на Railway (см. `.github/workflows/deploy-railway.yml`).
 
 Секреты в GitHub: `RAILWAY_TOKEN`, `RAILWAY_SERVICE_ID`, `TELEGRAM_BOT_TOKEN`.
 
