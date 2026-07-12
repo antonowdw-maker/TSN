@@ -12,6 +12,7 @@ from bot.handlers.commands import (
     build_back_to_main_keyboard,
     build_faq_answer_keyboard,
     build_faq_categories_keyboard,
+    build_faq_items_keyboard,
     build_main_menu,
     build_text_answer_keyboard,
 )
@@ -74,6 +75,28 @@ class TestUIComponents:
         keyboard = build_text_answer_keyboard()
         assert keyboard.inline_keyboard[0][0].callback_data == "menu:faq"
         assert keyboard.inline_keyboard[1][0].callback_data == "menu:main"
+
+    def test_faq_items_keyboard_has_main_menu(self, faq_repo: FAQRepository) -> None:
+        """На экране вопросов категории есть возврат к категориям и в главное меню."""
+        keyboard = build_faq_items_keyboard(faq_repo, "utilities")
+        assert keyboard.inline_keyboard[-2][0].callback_data == "menu:faq"
+        assert keyboard.inline_keyboard[-1][0].text == "◀️ Главное меню"
+        assert keyboard.inline_keyboard[-1][0].callback_data == "menu:main"
+
+    def test_all_faq_categories_have_main_menu_on_items_screen(
+        self,
+        faq_repo: FAQRepository,
+    ) -> None:
+        """Каждая категория FAQ показывает кнопку «Главное меню» на экране вопросов."""
+        for category_id, _title in faq_repo.list_categories():
+            keyboard = build_faq_items_keyboard(faq_repo, category_id)
+            callbacks = [
+                button.callback_data
+                for row in keyboard.inline_keyboard
+                for button in row
+            ]
+            assert "menu:main" in callbacks, category_id
+            assert "menu:faq" in callbacks, category_id
 
 
 class TestMessageHandler:

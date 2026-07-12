@@ -93,6 +93,7 @@ def build_faq_items_keyboard(faq_repo: FAQRepository, category_id: str) -> Inlin
         for item in items
     ]
     buttons.append([InlineKeyboardButton("◀️ К категориям", callback_data="menu:faq")])
+    buttons.append([InlineKeyboardButton("◀️ Главное меню", callback_data="menu:main")])
     return InlineKeyboardMarkup(buttons)
 
 
